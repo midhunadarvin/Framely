@@ -1,50 +1,49 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getLink } from "./lib/getLink";
+import { NextRequest } from "next/server";
 
 export const config = {
   matcher: ["/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)"],
 };
 
-export default clerkMiddleware(async (auth, req) => {
+export default function middleware(req: NextRequest) {
   const url = req.nextUrl;
-
-  // Get hostname of request (e.g. demo.framely.site, demo.localhost:3000)
   const hostname = req.headers.get("host")!;
-
-  // Get the pathname of the request (e.g. /, /about, /blog/first-post)
   const path = url.pathname;
 
+  // For localhost/local development: use path-based routing
+  if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
+    // Path-based routing: /app/* -> /dashboard, /editor/* -> /editor, etc.
+    if (path.startsWith("/app/") || path === "/app") {
+      return NextResponse.rewrite(
+        new URL(`/dashboard${path === "/app" ? "" : path.slice(4)}`, req.url),
+      );
+    }
+    // /editor routes stay as-is
+    return NextResponse.next();
+  }
+
+  // For production with subdomains: extract subdomain from hostname
+  const subdomain = hostname.split(".")[0];
+
   // Handle editor subdomain
-  if (
-    hostname === getLink({ subdomain: "editor", method: false }).slice(0, -1)
-  ) {
-    await auth.protect();
+  if (subdomain === "editor") {
     return NextResponse.rewrite(
       new URL(`/editor${path === "/" ? "" : path}`, req.url),
     );
   }
 
-  // Only allow app.framely.site for dashboard page, sounds better, more concise
-  if (hostname === getLink({ subdomain: "app", method: false }).slice(0, -1)) {
-    await auth.protect();
+  // Handle app/dashboard subdomains
+  if (subdomain === "app" || subdomain === "dashboard") {
     return NextResponse.rewrite(
       new URL(`/dashboard${path === "/" ? "" : path}`, req.url),
     );
   }
 
-  if (
-    hostname === getLink({ subdomain: "dashboard", method: false }).slice(0, -1)
-  ) {
-    return NextResponse.redirect(getLink({ subdomain: "app" }));
+  // Handle custom subdomains (user pages)
+  if (subdomain && subdomain !== "www") {
+    return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
   }
 
-  if (hostname === getLink({ method: false }).slice(0, -1)) {
-    // TODO: Redirect to /landing once the page is built
-    return NextResponse.rewrite(new URL(`/dashboard${path}`, req.url));
-  }
-
-  // Handle custom subdomains
-  const subdomain = hostname.split(".")[0];
-  return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
-});
+  // Default routing
+  return NextResponse.next();
+}

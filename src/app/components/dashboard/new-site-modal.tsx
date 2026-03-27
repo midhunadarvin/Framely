@@ -51,7 +51,7 @@ export default function NewPageModal() {
     try {
       const res = await createSite(data);
       if (res.success === false) {
-        toast.error("Error", { description: res.msg });
+        toast.error("Error", { description: res.msg || "Failed to create site" });
       } else if (res.site) {
         toast.success("Success", {
           description: data.title + " has been created.",

@@ -1,3 +1,6 @@
+// Stub user ID used when Clerk auth is disabled
+export const LOCAL_USER_ID = "local-user";
+
 export type ElementTypes =
   | "h1"
   | "h2"

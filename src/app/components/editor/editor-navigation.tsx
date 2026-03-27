@@ -42,7 +42,7 @@ const EditorNavigation = ({ siteDetails }: Props) => {
   if (isMobile) return null;
 
   const handleOnBlurTitleChange: FocusEventHandler<HTMLInputElement> = async (
-    event
+    event,
   ) => {
     if (event.target.value && event.target.value !== siteDetails.title) {
       setTitleLoading(true);
@@ -52,7 +52,7 @@ const EditorNavigation = ({ siteDetails }: Props) => {
       });
 
       if (res.success === false) {
-        toast("Error", { description: res.msg });
+        toast("Error", { description: "Something went wrong" });
       } else if (res.site) {
         toast("Success", {
           description: `Name of this site changed to '${res.site.title}'`,
@@ -88,7 +88,7 @@ const EditorNavigation = ({ siteDetails }: Props) => {
     });
 
     if (res.success === false) {
-      toast("Error", { description: res.msg });
+        toast("Error", { description: res.msg || "Failed to update site" });
       dispatch({
         type: "TOGGLE_VISIBILITY_STATUS",
         payload: { value: !checked },
@@ -109,7 +109,7 @@ const EditorNavigation = ({ siteDetails }: Props) => {
       content: JSON.stringify(state.editor.elements),
     });
     if (!res.success) {
-      toast("Error", { description: res.msg });
+      toast("Error", { description: res.msg || "Failed to save changes" });
     } else {
       toast("Success", { description: "Your changes have been saved." });
     }

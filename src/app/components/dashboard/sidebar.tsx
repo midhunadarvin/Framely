@@ -15,21 +15,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import {
-  ClerkLoading,
-  SignInButton,
-  SignOutButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
-import { dark } from "@clerk/themes";
-import {
   ChartLine,
   Github,
   Globe,
   LayoutDashboard,
   Lightbulb,
-  LogOut,
   Moon,
   MoveUpRight,
   Settings,
@@ -138,41 +128,12 @@ const AppSidebar = () => {
         <Separator />
         <SidebarMenu>
           <SidebarMenuItem>
-            <ClerkLoading>
-              <div className="flex items-center p-2 gap-2">
-                <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
-                <div className="flex-1 space-y-1">
-                  <div className="w-24 h-4 rounded bg-muted animate-pulse" />
-                  <div className="w-16 h-3 rounded bg-muted animate-pulse" />
-                </div>
+            <div className="flex items-center p-2 gap-2">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+                U
               </div>
-            </ClerkLoading>
-            <SignedIn>
-              <div className="flex items-center justify-between w-full space-x-2">
-                <div className="max-w-full truncate pr-2 rounded-lg">
-                  <UserButton
-                    appearance={{
-                      baseTheme: theme === "dark" ? dark : undefined,
-                      elements: {
-                        userButtonBox:
-                          "flex-row-reverse hover:bg-muted rounded-lg p-2",
-                      },
-                    }}
-                    showName
-                  />
-                </div>
-                <SignOutButton>
-                  <Button variant={"ghost"} className="px-2 py-6">
-                    <LogOut />
-                  </Button>
-                </SignOutButton>
-              </div>
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="redirect">
-                <Button className="w-full">Sign in</Button>
-              </SignInButton>
-            </SignedOut>
+              <span className="text-sm truncate">Local User</span>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

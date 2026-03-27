@@ -1,9 +1,9 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import { Page } from "@prisma/client";
 import { revalidateTag, unstable_cache } from "next/cache";
+import { LOCAL_USER_ID } from "@/lib/constants";
 
 type SiteProps = {
   title: string;
@@ -11,27 +11,34 @@ type SiteProps = {
 };
 
 export async function createSite({ title, subdomain }: SiteProps) {
-  const { userId } = await auth();
+  const userId = LOCAL_USER_ID;
 
-  if (!userId) return { success: false, msg: "User not signed in" };
-
-  const existingSite = await db.page.findFirst({
-    where: { subdomain: subdomain },
-  });
-
-  if (existingSite) {
-    return { success: false, msg: "Subdomain is already in use" };
+  if (!title || !subdomain) {
+    return { success: false, msg: "Title and subdomain are required" };
   }
 
   try {
+    const existingSite = await db.page.findFirst({
+      where: { subdomain: subdomain },
+    });
+
+    if (existingSite) {
+      return { success: false, msg: "Subdomain is already in use" };
+    }
+
+    console.log(
+      `[createSite] Creating site "${title}" with subdomain "${subdomain}" for user ${userId}`,
+    );
     const site = await db.page.create({
       data: { userId: userId, title: title, subdomain: subdomain },
     });
+    console.log(`[createSite] Successfully created site ${site.id}`);
     return { success: true, site: site };
   } catch (error) {
+    console.error("[createSite] Error:", error);
     return {
       success: false,
-      msg: error instanceof Error ? error.message : "An unknown error occurred",
+      msg: error instanceof Error ? error.message : "Failed to create site",
     };
   }
 }
@@ -46,33 +53,50 @@ export async function upsertSite({
   content,
   visible,
 }: UpsertProps) {
-  const { userId } = await auth();
+  const userId = LOCAL_USER_ID;
 
-  if (!userId) return { success: false, msg: "User not signed in" };
+  if (!id) {
+    return { success: false, msg: "Site ID is required" };
+  }
 
-  const site = await db.page.update({
-    where: { id: id, userId: userId },
-    data: {
-      id: id,
-      title: title,
-      subdomain: subdomain,
-      previewImage: previewImage,
-      content: content,
-      visible: visible,
-    },
-  });
+  try {
+    console.log(`[upsertSite] Updating site ${id}`);
+    const site = await db.page.update({
+      where: { id: id, userId: userId },
+      data: {
+        id: id,
+        title: title,
+        subdomain: subdomain,
+        previewImage: previewImage,
+        content: content,
+        visible: visible,
+      },
+    });
 
-  revalidateTag(site.subdomain);
+    if (site.subdomain) {
+      revalidateTag(site.subdomain);
+    }
+    console.log(`[upsertSite] Successfully updated site ${id}`);
 
-  return { success: true, site: site };
+    return { success: true, site: site };
+  } catch (error) {
+    console.error("[upsertSite] Error:", error);
+    return {
+      success: false,
+      msg: error instanceof Error ? error.message : "Failed to update site",
+    };
+  }
 }
 
 export async function deleteSite(siteId: string) {
-  const { userId } = await auth();
+  const userId = LOCAL_USER_ID;
 
-  if (!userId) return { success: false, msg: "User not signed in" };
+  if (!siteId) {
+    return { success: false, msg: "Site ID is required" };
+  }
 
   try {
+    console.log(`[deleteSite] Deleting site ${siteId}`);
     const response = await db.page.delete({
       where: {
         id: siteId,
@@ -80,13 +104,17 @@ export async function deleteSite(siteId: string) {
       },
     });
 
-    revalidateTag(response.subdomain);
+    if (response.subdomain) {
+      revalidateTag(response.subdomain);
+    }
+    console.log(`[deleteSite] Successfully deleted site ${siteId}`);
 
     return { success: true };
   } catch (error) {
+    console.error("[deleteSite] Error:", error);
     return {
       success: false,
-      msg: error instanceof Error ? error.message : "An unknown error occurred",
+      msg: error instanceof Error ? error.message : "Failed to delete site",
     };
   }
 }
@@ -122,7 +150,7 @@ export const getSiteByDomain = async (subdomainName: string) => {
       {
         revalidate: 900, // 15 Minutes
         tags: [subdomainName],
-      }
+      },
     )();
 
     if (!response) {
@@ -130,13 +158,15 @@ export const getSiteByDomain = async (subdomainName: string) => {
     }
 
     if (!response.visible) {
-      const session = await auth();
-      if (!(session.userId === response.userId))
+      // With LOCAL_USER_ID, all sites are owned by the same user
+      // So private sites are only accessible to that user (which is effectively "local mode")
+      if (response.userId !== LOCAL_USER_ID) {
         return {
           success: true,
           msg: "The requested site is private (for now), come back later!",
           private: true,
         };
+      }
 
       return { success: true, site: response };
     }
